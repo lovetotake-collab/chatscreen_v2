@@ -1,0 +1,2144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>매매 기록 통계</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .stock-item {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .stock-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .summary-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .summary-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-calculate {
+            background: #ff9800;
+            color: white;
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+        }
+        
+        .btn-calculate:hover {
+            background: #f57c00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,152,0,0.3);
+        }
+        
+        .btn-delete {
+            background: #f44336;
+            color: white;
+            padding: 8px 15px;
+        }
+        
+        .btn-delete:hover {
+            background: #da190b;
+        }
+        
+        .btn-delete-row {
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+        
+        .btn-delete-row:hover {
+            background: #da190b;
+        }
+        
+        .btn-add-buy, .btn-add-sell {
+            width: 100%;
+            color: white;
+            transition: all 0.3s;
+        }
+        
+        .btn-add-buy {
+            background: #4caf50;
+        }
+        
+        .btn-add-buy:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+        
+        .btn-add-sell {
+            background: #2196f3;
+        }
+        
+        .btn-add-sell:hover {
+            background: #1976d2;
+            transform: translateY(-1px);
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .btn-export {
+            background: #2e7d32;
+            color: white;
+            padding: 15px;
+            font-size: 16px;
+        }
+        
+        .btn-export:hover {
+            background: #1b5e20;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46,125,50,0.3);
+        }
+        
+        .btn-reset {
+            background: #9e9e9e;
+            color: white;
+            padding: 15px;
+            font-size: 16px;
+        }
+        
+        .btn-reset:hover {
+            background: #757575;
+        }
+        
+        /* 파스텔 배경색 */
+        .buy-section {
+            background: #ffebee !important;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .sell-section {
+            background: #e3f2fd !important;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .buy-section h4 {
+            color: #c62828 !important;
+        }
+        
+        .sell-section h4 {
+            color: #1565c0 !important;
+        }
+        
+        .trade-row {
+            display: grid;
+            grid-template-columns: auto 120px 100px 120px 120px auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .trade-label {
+            font-weight: bold;
+            color: #333;
+            padding: 10px;
+        }
+        
+        .sell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .sell-profit-info {
+            font-size: 1.1em;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        /* 전체 통계 */
+        .total-stats {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            border: 3px solid #ffc107;
+            margin-bottom: 20px;
+        }
+        
+        .total-stats h3 {
+            color: #856404;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .stats-summary:last-child {
+            grid-template-columns: repeat(7, 1fr);
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* 통계 리스트 테이블 */
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+        
+        .stats-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 0.9em;
+            border: 1px solid #5568d3;
+        }
+        
+        .stats-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+            font-size: 0.9em;
+        }
+        
+        .stats-table tr:hover {
+            background: #f0f0f0;
+        }
+        
+        .stats-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .stats-table tbody tr:hover {
+            background: #e3f2fd;
+        }
+        
+        .profit-text {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .loss-text {
+            color: #2196f3;
+            font-weight: bold;
+        }
+        
+        .break-even-text {
+            color: #333;
+            font-weight: bold;
+        }
+        
+        /* 시총규모별 행 색상 */
+        .row-신규주 {
+            background-color: #d4edda !important;
+        }
+        
+        .row-세력주 {
+            background-color: #ffffff !important;
+        }
+        
+        .row-반수급주 {
+            background-color: #ffe4c4 !important;
+        }
+        
+        .row-초대형주 {
+            background-color: #e9ecef !important;
+        }
+        
+        /* 구글 연동 버튼 스타일 */
+        .header-buttons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: flex-end;
+        }
+        
+        .btn-google {
+            background: #4285f4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-google:hover {
+            background: #357ae8;
+            transform: translateY(-1px);
+        }
+        
+        .btn-backup {
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-backup:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        
+        .btn-backup:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .btn-load {
+            background: #f59e0b;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-load:hover:not(:disabled) {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+        
+        .btn-load:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .sync-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        
+        .sync-status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+        
+        .sync-status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+        
+        .sync-status.syncing {
+            background: #ffc;
+            color: #cc6;
+        }
+        
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        @media (max-width: 1200px) {
+            .stats-summary {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .stats-summary:last-child {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .stock-header {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .stats-summary:last-child {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .stock-header {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .trade-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 매매 기록 통계</h1>
+        
+        <div class="header-buttons">
+            <div class="sync-status disconnected" id="syncStatus">
+                <span class="sync-dot"></span>
+                <span id="statusText">연결 안됨</span>
+            </div>
+            <button id="backupBtn" class="btn-backup" onclick="manualBackup()" disabled>
+                <span>💾</span>
+                <span>백업</span>
+            </button>
+            <button id="loadBtn" class="btn-load" onclick="manualLoad()" disabled>
+                <span>📥</span>
+                <span>로드</span>
+            </button>
+            <button id="googleBtn" class="btn-google" onclick="handleAuthClick()">
+                <span>🔐</span>
+                <span id="googleBtnText">구글 로그인</span>
+            </button>
+        </div>
+        
+        <div class="card">
+            <h2>💼 종목별 매매 기록</h2>
+            
+            <div id="stockInput"></div>
+            
+            <button class="btn-calculate" onclick="calculateAndAdd()">📈 개별종목계산</button>
+            
+            <div class="action-buttons">
+                <button class="btn-export" onclick="exportToExcel()">📥 엑셀 다운로드</button>
+                <button class="btn-reset" onclick="resetAll()">🔄 초기화</button>
+            </div>
+        </div>
+        
+        <div class="card" id="statsCard" style="display: none;">
+            <div class="total-stats">
+                <h3>🎯 전체 통계</h3>
+                <div class="stats-summary">
+                    <div class="stat-item">
+                        <div class="stat-label">총 거래 종목</div>
+                        <div class="stat-value" id="totalStocks">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">총 투자금액</div>
+                        <div class="stat-value" id="totalInvest">0원</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">총 수익금</div>
+                        <div class="stat-value" id="totalProfit">0원</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">평균 수익률</div>
+                        <div class="stat-value" id="avgReturn">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">승률</div>
+                        <div class="stat-value" id="winRate">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">최고 수익률</div>
+                        <div class="stat-value" id="maxProfitRate">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">최대 손실률</div>
+                        <div class="stat-value" id="maxLossRate">0%</div>
+                    </div>
+                </div>
+                
+                <div class="stats-summary" style="margin-top: 15px;">
+                    <div class="stat-item">
+                        <div class="stat-label">평균 매매기간</div>
+                        <div class="stat-value" id="avgTradePeriod">0일</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">평균 1차매수기간</div>
+                        <div class="stat-value" id="avgFirstBuyPeriod">0일</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">평균 매수차수</div>
+                        <div class="stat-value" id="avgBuyCount">0회</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">최대 매수차수</div>
+                        <div class="stat-value" id="maxBuyCount">0회</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">1등 차수</div>
+                        <div class="stat-value" id="topBuyCount">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">2등 차수</div>
+                        <div class="stat-value" id="secondBuyCount">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">3등 차수</div>
+                        <div class="stat-value" id="thirdBuyCount">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <h2>📋 통계 종목 리스트</h2>
+            
+            <div style="margin-bottom: 15px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;">
+                <div>
+                    <label style="font-size: 0.9em;">기법명 필터</label>
+                    <select id="filterStrategy" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="세력주원리스윙">세력주원리스윙</option>
+                        <option value="삼시확">삼시확</option>
+                        <option value="F존">F존</option>
+                        <option value="SM10">SM10</option>
+                        <option value="SM3">SM3</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.9em;">시총규모 필터</label>
+                    <select id="filterMarketCap" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="신규주">신규주</option>
+                        <option value="세력주">세력주</option>
+                        <option value="반수급주">반수급주</option>
+                        <option value="초대형주">초대형주</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.9em;">등수 필터</label>
+                    <select id="filterRank" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="대장">대장</option>
+                        <option value="2등">2등</option>
+                        <option value="3등">3등</option>
+                        <option value="개별">개별</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.9em;">신고가 필터</label>
+                    <select id="filterHighType" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="120일">120일</option>
+                        <option value="240일">240일</option>
+                        <option value="480일">480일</option>
+                        <option value="역사적신고가">역사적신고가</option>
+                        <option value="박스권">박스권</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.9em;">엔벨정착 필터</label>
+                    <select id="filterEnvelope" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="Y">Y</option>
+                        <option value="N">N</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.9em;">수익여부 필터</label>
+                    <select id="filterProfit" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        <option value="O">수익</option>
+                        <option value="▲">본전</option>
+                        <option value="X">손실</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>기법명</th>
+                            <th>시총규모</th>
+                            <th>종목명</th>
+                            <th>등수</th>
+                            <th>신고가</th>
+                            <th>엔벨정착</th>
+                            <th>첫매수기간</th>
+                            <th>매매기간</th>
+                            <th>매수차수</th>
+                            <th>총매수금액</th>
+                            <th>수익률</th>
+                            <th>수익금</th>
+                            <th>수익여부</th>
+                            <th>삭제</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let stockData = [];
+        
+        // 대한민국 공휴일 (2024-2026)
+        const holidays = [
+            '2024-01-01', '2024-02-09', '2024-02-10', '2024-02-11', '2024-02-12',
+            '2024-03-01', '2024-04-10', '2024-05-05', '2024-05-06', '2024-05-15',
+            '2024-06-06', '2024-08-15', '2024-09-16', '2024-09-17', '2024-09-18',
+            '2024-10-03', '2024-10-09', '2024-12-25',
+            '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-03-01',
+            '2025-03-03', '2025-05-05', '2025-05-06', '2025-06-06', '2025-08-15',
+            '2025-10-03', '2025-10-05', '2025-10-06', '2025-10-07', '2025-10-09',
+            '2025-12-25',
+            '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01',
+            '2026-04-05', '2026-05-05', '2026-05-25', '2026-06-06', '2026-08-15',
+            '2026-09-24', '2026-09-25', '2026-09-26', '2026-10-03', '2026-10-09',
+            '2026-12-25'
+        ];
+        
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        function calculateBusinessDays(startDate, endDate) {
+            if (!startDate || !endDate) return 0;
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (start > end) return 0;
+            
+            let count = 0;
+            const current = new Date(start);
+            
+            while (current <= end) {
+                const dayOfWeek = current.getDay();
+                const dateStr = formatDate(current);
+                
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.includes(dateStr)) {
+                    count++;
+                }
+                
+                current.setDate(current.getDate() + 1);
+            }
+            
+            return count - 1;
+        }
+        
+        function autoFormatDate(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            
+            if (value.length === 6) {
+                const year = '20' + value.substring(0, 2);
+                const month = value.substring(2, 4);
+                const day = value.substring(4, 6);
+                input.value = `${year}-${month}-${day}`;
+                
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
+            }
+        }
+        
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function parseNumber(str) {
+            return parseFloat(str.replace(/,/g, '')) || 0;
+        }
+        
+        function formatInput(input) {
+            const cursorPos = input.selectionStart;
+            const oldValue = input.value;
+            const oldLength = oldValue.length;
+            
+            const numValue = oldValue.replace(/,/g, '');
+            if (numValue === '') {
+                input.value = '';
+                return;
+            }
+            
+            const cleanValue = numValue.replace(/[^\d.]/g, '');
+            if (cleanValue === '') {
+                input.value = '';
+                return;
+            }
+            
+            const parts = cleanValue.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            const formatted = parts.join('.');
+            
+            input.value = formatted;
+            
+            try {
+                const newLength = formatted.length;
+                const diff = newLength - oldLength;
+                input.setSelectionRange(cursorPos + diff, cursorPos + diff);
+            } catch (e) {}
+        }
+        
+        function createStockInput() {
+            const stockInput = document.getElementById('stockInput');
+            
+            stockInput.innerHTML = `
+                <div class="stock-item">
+                    <div class="stock-header">
+                        <div>
+                            <label>기법명</label>
+                            <select id="strategyName">
+                                <option value="">선택</option>
+                                <option value="세력주원리스윙">세력주원리스윙</option>
+                                <option value="삼시확">삼시확</option>
+                                <option value="F존">F존</option>
+                                <option value="SM10">SM10</option>
+                                <option value="SM3">SM3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>시총규모</label>
+                            <select id="marketCap">
+                                <option value="">선택</option>
+                                <option value="신규주">신규주</option>
+                                <option value="세력주">세력주</option>
+                                <option value="반수급주">반수급주</option>
+                                <option value="초대형주">초대형주</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>종목명</label>
+                            <input type="text" id="stockName" placeholder="예: 삼성전자">
+                        </div>
+                        <div>
+                            <label>등수</label>
+                            <select id="rank">
+                                <option value="">선택</option>
+                                <option value="대장">대장</option>
+                                <option value="2등">2등</option>
+                                <option value="3등">3등</option>
+                                <option value="개별">개별</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>신고가</label>
+                            <select id="highType">
+                                <option value="">선택</option>
+                                <option value="120일">120일</option>
+                                <option value="240일">240일</option>
+                                <option value="480일">480일</option>
+                                <option value="역사적신고가">역사적신고가</option>
+                                <option value="박스권">박스권</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>엔벨정착여부</label>
+                            <select id="envelope">
+                                <option value="">선택</option>
+                                <option value="Y">Y</option>
+                                <option value="N">N</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>포착일 (예:250702)</label>
+                            <input type="text" id="catchDate" placeholder="250702" maxlength="10">
+                        </div>
+                    </div>
+                    
+                    <div class="buy-section">
+                        <h4>💰 매수 정보</h4>
+                        
+                        <div class="summary-row" id="buySummary" style="display: none;">
+                            <div class="summary-item">
+                                <div class="summary-label">매수횟수</div>
+                                <div class="summary-value" id="buyCount">0회</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">총매수금액</div>
+                                <div class="summary-value" id="buyTotalAmount">0원</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">평단가</div>
+                                <div class="summary-value" id="buyAvgPrice">0원</div>
+                            </div>
+                        </div>
+                        
+                        <div id="buyList">
+                            <div class="trade-row buy-row">
+                                <div class="trade-label">1차매수</div>
+                                <div>
+                                    <label style="font-size: 0.85em;">날짜</label>
+                                    <input type="text" class="buy-date date-input" placeholder="250702" maxlength="10">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">D+일</label>
+                                    <input type="text" class="buy-dday" readonly style="background: #f5f5f5;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">매수가</label>
+                                    <input type="text" class="buy-price" placeholder="가격" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">매수금액</label>
+                                    <input type="text" class="buy-amount" placeholder="금액" inputmode="numeric">
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button class="btn-delete-row" onclick="deleteBuyRow(this)" style="display:none;">삭제</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-add-buy" onclick="addBuyRow()">+ 매수 추가</button>
+                    </div>
+                    
+                    <div class="sell-section">
+                        <div class="sell-header">
+                            <h4 style="margin: 0;">💸 매도 정보</h4>
+                            <div id="sellProfitInfo" style="display: none;" class="sell-profit-info">
+                                <span id="sellProfitRate">0%</span> / <span id="sellProfitAmount">0원</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-row" style="margin-bottom: 15px;">
+                            <div class="summary-item" style="grid-column: span 3;">
+                                <div class="summary-label">남은 매수물량의 총금액</div>
+                                <div class="summary-value" id="remainingBuyAmount">0원</div>
+                            </div>
+                        </div>
+                        
+                        <div id="sellList">
+                            <div class="trade-row sell-row">
+                                <div class="trade-label">1차매도</div>
+                                <div>
+                                    <label style="font-size: 0.85em;">날짜</label>
+                                    <input type="text" class="sell-date date-input" placeholder="250702" maxlength="10">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">D+일</label>
+                                    <input type="text" class="sell-dday" readonly style="background: #f5f5f5;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">매도가</label>
+                                    <input type="text" class="sell-price" placeholder="가격" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85em;">매도금액</label>
+                                    <input type="text" class="sell-amount" placeholder="금액" inputmode="numeric">
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button class="btn-delete-row" onclick="deleteSellRow(this)" style="display:none;">삭제</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-add-sell" onclick="addSellRow()">+ 매도 추가</button>
+                    </div>
+                </div>
+            `;
+            
+            setupEventListeners();
+        }
+        
+        function setupEventListeners() {
+            // 포착일
+            const catchDate = document.getElementById('catchDate');
+            catchDate.addEventListener('input', function() {
+                autoFormatDate(this);
+            });
+            catchDate.addEventListener('change', updateAllDdays);
+            
+            // 날짜 입력 필드들
+            const dateInputs = document.querySelectorAll('.date-input');
+            dateInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    autoFormatDate(this);
+                });
+                input.addEventListener('change', updateAllDdays);
+            });
+            
+            // 숫자 입력 필드
+            const numericInputs = document.querySelectorAll('input[inputmode="numeric"]');
+            numericInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    formatInput(this);
+                    updateSummary();
+                });
+            });
+        }
+        
+        function updateAllDdays() {
+            const catchDate = document.getElementById('catchDate').value;
+            
+            // 매수 D-day
+            const buyRows = document.querySelectorAll('.buy-row');
+            buyRows.forEach(row => {
+                const buyDate = row.querySelector('.buy-date').value;
+                const ddayInput = row.querySelector('.buy-dday');
+                if (catchDate && buyDate) {
+                    const days = calculateBusinessDays(catchDate, buyDate);
+                    ddayInput.value = `D+${days}`;
+                } else {
+                    ddayInput.value = '';
+                }
+            });
+            
+            // 매도 D-day (마지막 매수일 기준)
+            const lastBuyDate = getLastBuyDate();
+            const sellRows = document.querySelectorAll('.sell-row');
+            sellRows.forEach(row => {
+                const sellDate = row.querySelector('.sell-date').value;
+                const ddayInput = row.querySelector('.sell-dday');
+                if (lastBuyDate && sellDate) {
+                    const days = calculateBusinessDays(lastBuyDate, sellDate);
+                    ddayInput.value = `D+${days}`;
+                } else {
+                    ddayInput.value = '';
+                }
+            });
+        }
+        
+        function getLastBuyDate() {
+            const buyRows = document.querySelectorAll('.buy-row');
+            let lastDate = null;
+            
+            buyRows.forEach(row => {
+                const date = row.querySelector('.buy-date').value;
+                if (date && (!lastDate || date > lastDate)) {
+                    lastDate = date;
+                }
+            });
+            
+            return lastDate;
+        }
+        
+        function updateSummary() {
+            // 매수 계산
+            let totalBuyAmount = 0;
+            let totalBuyQty = 0;
+            let buyCount = 0;
+            
+            const buyRows = document.querySelectorAll('.buy-row');
+            buyRows.forEach(row => {
+                const price = parseNumber(row.querySelector('.buy-price').value);
+                const amount = parseNumber(row.querySelector('.buy-amount').value);
+                if (amount > 0 && price > 0) {
+                    const qty = amount / price;
+                    totalBuyAmount += amount;
+                    totalBuyQty += qty;
+                    buyCount++;
+                }
+            });
+            
+            const avgPrice = totalBuyQty > 0 ? totalBuyAmount / totalBuyQty : 0;
+            
+            // 매수 요약 업데이트
+            const buySummary = document.getElementById('buySummary');
+            if (buyCount > 0) {
+                buySummary.style.display = 'grid';
+                document.getElementById('buyCount').textContent = `${buyCount}회`;
+                document.getElementById('buyTotalAmount').textContent = formatNumber(Math.round(totalBuyAmount)) + '원';
+                document.getElementById('buyAvgPrice').textContent = formatNumber(Math.round(avgPrice)) + '원';
+            } else {
+                buySummary.style.display = 'none';
+            }
+            
+            // 매도 계산
+            let totalSellAmount = 0;
+            let totalSellQty = 0;
+            
+            const sellRows = document.querySelectorAll('.sell-row');
+            sellRows.forEach(row => {
+                const price = parseNumber(row.querySelector('.sell-price').value);
+                const amount = parseNumber(row.querySelector('.sell-amount').value);
+                if (amount > 0) {
+                    totalSellAmount += amount;
+                    if (price > 0) {
+                        const qty = amount / price;
+                        totalSellQty += qty;
+                    }
+                }
+            });
+            
+            // 남은 매수물량 금액 = 총매수금액 - 총매도금액 (단순 차액)
+            const remainingAmount = totalBuyAmount - totalSellAmount;
+            document.getElementById('remainingBuyAmount').textContent = formatNumber(Math.round(remainingAmount)) + '원';
+            
+            // 수익금 = 총매도금액 - (평단가 × 총매도수량)
+            if (totalBuyAmount > 0 && totalSellQty > 0) {
+                const profit = totalSellAmount - (avgPrice * totalSellQty);
+                const profitRate = ((totalSellAmount / (avgPrice * totalSellQty)) - 1) * 100;
+                
+                const profitInfo = document.getElementById('sellProfitInfo');
+                const profitRateEl = document.getElementById('sellProfitRate');
+                const profitAmountEl = document.getElementById('sellProfitAmount');
+                
+                profitInfo.style.display = 'block';
+                profitRateEl.textContent = profitRate.toFixed(2) + '%';
+                profitAmountEl.textContent = formatNumber(Math.round(profit)) + '원';
+                
+                if (profit > 0) {
+                    profitRateEl.style.color = '#f44336';
+                    profitAmountEl.style.color = '#f44336';
+                } else if (profit < 0) {
+                    profitRateEl.style.color = '#2196f3';
+                    profitAmountEl.style.color = '#2196f3';
+                } else {
+                    profitRateEl.style.color = '#333';
+                    profitAmountEl.style.color = '#333';
+                }
+            } else {
+                document.getElementById('sellProfitInfo').style.display = 'none';
+            }
+        }
+        
+        function addBuyRow() {
+            const buyList = document.getElementById('buyList');
+            const currentRows = buyList.querySelectorAll('.buy-row').length;
+            
+            const newRow = document.createElement('div');
+            newRow.className = 'trade-row buy-row';
+            newRow.innerHTML = `
+                <div class="trade-label">${currentRows + 1}차매수</div>
+                <div>
+                    <label style="font-size: 0.85em;">날짜</label>
+                    <input type="text" class="buy-date date-input" placeholder="250702" maxlength="10">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">D+일</label>
+                    <input type="text" class="buy-dday" readonly style="background: #f5f5f5;">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">매수가</label>
+                    <input type="text" class="buy-price" placeholder="가격" inputmode="numeric">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">매수금액</label>
+                    <input type="text" class="buy-amount" placeholder="금액" inputmode="numeric">
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button class="btn-delete-row" onclick="deleteBuyRow(this)">삭제</button>
+                </div>
+            `;
+            
+            buyList.appendChild(newRow);
+            setupEventListeners();
+            
+            const firstDelete = buyList.querySelector('.btn-delete-row');
+            if (firstDelete) firstDelete.style.display = 'block';
+        }
+        
+        function deleteBuyRow(button) {
+            const buyList = document.getElementById('buyList');
+            button.closest('.buy-row').remove();
+            
+            const rows = buyList.querySelectorAll('.buy-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.trade-label').textContent = `${index + 1}차매수`;
+            });
+            
+            if (rows.length === 1) {
+                const deleteBtn = rows[0].querySelector('.btn-delete-row');
+                if (deleteBtn) deleteBtn.style.display = 'none';
+            }
+            
+            updateSummary();
+            updateAllDdays();
+        }
+        
+        function addSellRow() {
+            const sellList = document.getElementById('sellList');
+            const currentRows = sellList.querySelectorAll('.sell-row').length;
+            
+            const newRow = document.createElement('div');
+            newRow.className = 'trade-row sell-row';
+            newRow.innerHTML = `
+                <div class="trade-label">${currentRows + 1}차매도</div>
+                <div>
+                    <label style="font-size: 0.85em;">날짜</label>
+                    <input type="text" class="sell-date date-input" placeholder="250702" maxlength="10">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">D+일</label>
+                    <input type="text" class="sell-dday" readonly style="background: #f5f5f5;">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">매도가</label>
+                    <input type="text" class="sell-price" placeholder="가격" inputmode="numeric">
+                </div>
+                <div>
+                    <label style="font-size: 0.85em;">매도금액</label>
+                    <input type="text" class="sell-amount" placeholder="금액" inputmode="numeric">
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button class="btn-delete-row" onclick="deleteSellRow(this)">삭제</button>
+                </div>
+            `;
+            
+            sellList.appendChild(newRow);
+            setupEventListeners();
+            
+            const firstDelete = sellList.querySelector('.btn-delete-row');
+            if (firstDelete) firstDelete.style.display = 'block';
+        }
+        
+        function deleteSellRow(button) {
+            const sellList = document.getElementById('sellList');
+            button.closest('.sell-row').remove();
+            
+            const rows = sellList.querySelectorAll('.sell-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.trade-label').textContent = `${index + 1}차매도`;
+            });
+            
+            if (rows.length === 1) {
+                const deleteBtn = rows[0].querySelector('.btn-delete-row');
+                if (deleteBtn) deleteBtn.style.display = 'none';
+            }
+            
+            updateSummary();
+            updateAllDdays();
+        }
+        
+        function calculateAndAdd() {
+            const strategy = document.getElementById('strategyName').value || '';
+            const marketCap = document.getElementById('marketCap').value || '';
+            const name = document.getElementById('stockName').value || '종목';
+            const rank = document.getElementById('rank').value || '';
+            const highType = document.getElementById('highType').value || '';
+            const envelope = document.getElementById('envelope').value || '';
+            const catchDate = document.getElementById('catchDate').value || '';
+            
+            // 매수 정보 수집
+            let totalBuyAmount = 0;
+            let totalBuyQty = 0;
+            let buyCount = 0;
+            let firstBuyDate = null;
+            const buyData = [];
+            
+            const buyRows = document.querySelectorAll('.buy-row');
+            buyRows.forEach((row, idx) => {
+                const date = row.querySelector('.buy-date').value;
+                const dday = row.querySelector('.buy-dday').value;
+                const price = parseNumber(row.querySelector('.buy-price').value);
+                const amount = parseNumber(row.querySelector('.buy-amount').value);
+                
+                if (amount > 0 && price > 0) {
+                    const qty = amount / price;
+                    totalBuyAmount += amount;
+                    totalBuyQty += qty;
+                    buyCount++;
+                    
+                    if (!firstBuyDate || date < firstBuyDate) {
+                        firstBuyDate = date;
+                    }
+                    
+                    buyData.push({ 
+                        차수: `${idx + 1}차`, 
+                        날짜: date, 
+                        디데이: dday,
+                        매수가: price, 
+                        매수금액: amount 
+                    });
+                }
+            });
+            
+            if (buyCount === 0) {
+                alert('매수 정보를 입력해주세요!');
+                return;
+            }
+            
+            // 매도 정보 수집
+            let totalSellAmount = 0;
+            let totalSellQty = 0;
+            let lastSellDate = null;
+            const sellData = [];
+            
+            const sellRows = document.querySelectorAll('.sell-row');
+            sellRows.forEach((row, idx) => {
+                const date = row.querySelector('.sell-date').value;
+                const dday = row.querySelector('.sell-dday').value;
+                const price = parseNumber(row.querySelector('.sell-price').value);
+                const amount = parseNumber(row.querySelector('.sell-amount').value);
+                
+                if (amount > 0 && price > 0) {
+                    const qty = amount / price;
+                    totalSellAmount += amount;
+                    totalSellQty += qty;
+                    
+                    if (!lastSellDate || date > lastSellDate) {
+                        lastSellDate = date;
+                    }
+                    
+                    sellData.push({ 
+                        차수: `${idx + 1}차`, 
+                        날짜: date, 
+                        디데이: dday,
+                        매도가: price, 
+                        매도금액: amount 
+                    });
+                }
+            });
+            
+            // 계산
+            const avgPrice = totalBuyAmount / totalBuyQty;
+            const profit = totalSellAmount - (avgPrice * totalSellQty);
+            const profitRate = totalSellQty > 0 ? ((totalSellAmount / (avgPrice * totalSellQty)) - 1) * 100 : 0;
+            
+            // 첫매수기간
+            const firstBuyPeriod = catchDate && firstBuyDate ? calculateBusinessDays(catchDate, firstBuyDate) : 0;
+            
+            // 매매기간
+            const tradePeriod = firstBuyDate && lastSellDate ? calculateBusinessDays(firstBuyDate, lastSellDate) : 0;
+            
+            // 데이터 저장
+            const stockRecord = {
+                기법명: strategy,
+                시총규모: marketCap,
+                종목명: name,
+                등수: rank,
+                신고가: highType,
+                엔벨정착: envelope,
+                포착일: catchDate,
+                첫매수기간: firstBuyPeriod,
+                매매기간: tradePeriod,
+                매수차수: buyCount,
+                평단가: avgPrice,
+                총매수금액: totalBuyAmount,
+                총매도금액: totalSellAmount,
+                수익금: profit,
+                수익률: profitRate,
+                매수내역: buyData,
+                매도내역: sellData
+            };
+            
+            // 동일한 기법명 & 종목명이 있는지 확인
+            const existingIndex = stockData.findIndex(stock => 
+                stock.기법명 === stockRecord.기법명 && stock.종목명 === stockRecord.종목명
+            );
+            
+            if (existingIndex !== -1) {
+                // 기존 종목 업데이트
+                stockData[existingIndex] = stockRecord;
+                alert('기존 종목 정보가 업데이트되었습니다!');
+            } else {
+                // 새 종목 추가
+                stockData.push(stockRecord);
+            }
+            
+            // 리스트 업데이트
+            updateStatsList();
+            updateTotalStats();
+            
+            // 통계 카드 표시
+            document.getElementById('statsCard').style.display = 'block';
+        }
+        
+        function updateStatsList() {
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = '';
+            
+            // 필터 적용
+            const filterStrategy = document.getElementById('filterStrategy')?.value || '';
+            const filterMarketCap = document.getElementById('filterMarketCap')?.value || '';
+            const filterRank = document.getElementById('filterRank')?.value || '';
+            const filterHighType = document.getElementById('filterHighType')?.value || '';
+            const filterEnvelope = document.getElementById('filterEnvelope')?.value || '';
+            const filterProfit = document.getElementById('filterProfit')?.value || '';
+            
+            const filteredData = stockData.filter(stock => {
+                let profitSymbol = stock.수익금 > 0 ? 'O' : (stock.수익금 < 0 ? 'X' : '▲');
+                
+                if (filterStrategy && stock.기법명 !== filterStrategy) return false;
+                if (filterMarketCap && stock.시총규모 !== filterMarketCap) return false;
+                if (filterRank && stock.등수 !== filterRank) return false;
+                if (filterHighType && stock.신고가 !== filterHighType) return false;
+                if (filterEnvelope && stock.엔벨정착 !== filterEnvelope) return false;
+                if (filterProfit && profitSymbol !== filterProfit) return false;
+                
+                return true;
+            });
+            
+            filteredData.forEach((stock, index) => {
+                const originalIndex = stockData.indexOf(stock);
+                const row = document.createElement('tr');
+                row.style.cursor = 'pointer';
+                row.onclick = () => showStockDetail(originalIndex);
+                
+                // 시총규모별 행 색상 클래스 추가
+                if (stock.시총규모) {
+                    row.classList.add(`row-${stock.시총규모}`);
+                }
+                
+                let profitClass, profitSymbol, profitSymbolClass;
+                if (stock.수익금 > 0) {
+                    profitClass = 'profit-text';
+                    profitSymbol = 'O';
+                    profitSymbolClass = 'profit-text';
+                } else if (stock.수익금 < 0) {
+                    profitClass = 'loss-text';
+                    profitSymbol = 'X';
+                    profitSymbolClass = 'loss-text';
+                } else {
+                    profitClass = 'break-even-text';
+                    profitSymbol = '▲';
+                    profitSymbolClass = 'break-even-text';
+                }
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${stock.기법명}</td>
+                    <td>${stock.시총규모}</td>
+                    <td><strong>${stock.종목명}</strong></td>
+                    <td>${stock.등수}</td>
+                    <td>${stock.신고가}</td>
+                    <td>${stock.엔벨정착}</td>
+                    <td>${stock.첫매수기간}일</td>
+                    <td>${stock.매매기간}일</td>
+                    <td>${stock.매수차수}회</td>
+                    <td>${formatNumber(Math.round(stock.총매수금액))}원</td>
+                    <td class="${profitClass}">${stock.수익률.toFixed(2)}%</td>
+                    <td class="${profitClass}">${formatNumber(Math.round(stock.수익금))}원</td>
+                    <td class="${profitSymbolClass}">${profitSymbol}</td>
+                    <td><button class="btn-delete-row" onclick="event.stopPropagation(); deleteStockFromList(${originalIndex})">삭제</button></td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // 필터링된 데이터로 전체 통계 업데이트
+            updateTotalStats(filteredData);
+        }
+        
+        function applyFilters() {
+            updateStatsList();
+        }
+        
+        function showStockDetail(index) {
+            const stock = stockData[index];
+            
+            // 기본 정보 채우기
+            document.getElementById('strategyName').value = stock.기법명;
+            document.getElementById('marketCap').value = stock.시총규모 || '';
+            document.getElementById('stockName').value = stock.종목명;
+            document.getElementById('rank').value = stock.등수;
+            document.getElementById('highType').value = stock.신고가;
+            document.getElementById('envelope').value = stock.엔벨정착;
+            document.getElementById('catchDate').value = stock.포착일;
+            
+            // 매수 정보 채우기
+            const buyList = document.getElementById('buyList');
+            buyList.innerHTML = '';
+            
+            stock.매수내역.forEach((buy, idx) => {
+                const buyRow = document.createElement('div');
+                buyRow.className = 'trade-row buy-row';
+                buyRow.innerHTML = `
+                    <div class="trade-label">${buy.차수}</div>
+                    <div>
+                        <label style="font-size: 0.85em;">날짜</label>
+                        <input type="text" class="buy-date date-input" value="${buy.날짜}" placeholder="250702" maxlength="10">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">D+일</label>
+                        <input type="text" class="buy-dday" value="${buy.디데이}" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매수가</label>
+                        <input type="text" class="buy-price" value="${formatNumber(buy.매수가)}" placeholder="가격" inputmode="numeric">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매수금액</label>
+                        <input type="text" class="buy-amount" value="${formatNumber(buy.매수금액)}" placeholder="금액" inputmode="numeric">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn-delete-row" onclick="deleteBuyRow(this)" ${idx === 0 && stock.매수내역.length === 1 ? 'style="display:none;"' : ''}>삭제</button>
+                    </div>
+                `;
+                buyList.appendChild(buyRow);
+            });
+            
+            // 매도 정보 채우기
+            const sellList = document.getElementById('sellList');
+            sellList.innerHTML = '';
+            
+            stock.매도내역.forEach((sell, idx) => {
+                const sellRow = document.createElement('div');
+                sellRow.className = 'trade-row sell-row';
+                sellRow.innerHTML = `
+                    <div class="trade-label">${sell.차수}</div>
+                    <div>
+                        <label style="font-size: 0.85em;">날짜</label>
+                        <input type="text" class="sell-date date-input" value="${sell.날짜}" placeholder="250702" maxlength="10">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">D+일</label>
+                        <input type="text" class="sell-dday" value="${sell.디데이}" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매도가</label>
+                        <input type="text" class="sell-price" value="${formatNumber(sell.매도가)}" placeholder="가격" inputmode="numeric">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매도금액</label>
+                        <input type="text" class="sell-amount" value="${formatNumber(sell.매도금액)}" placeholder="금액" inputmode="numeric">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn-delete-row" onclick="deleteSellRow(this)" ${idx === 0 && stock.매도내역.length === 1 ? 'style="display:none;"' : ''}>삭제</button>
+                    </div>
+                `;
+                sellList.appendChild(sellRow);
+            });
+            
+            // 매도 내역이 없으면 기본 1행 추가
+            if (stock.매도내역.length === 0) {
+                sellList.innerHTML = `
+                    <div class="trade-row sell-row">
+                        <div class="trade-label">1차매도</div>
+                        <div>
+                            <label style="font-size: 0.85em;">날짜</label>
+                            <input type="text" class="sell-date date-input" placeholder="250702" maxlength="10">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em;">D+일</label>
+                            <input type="text" class="sell-dday" readonly style="background: #f5f5f5;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em;">매도가</label>
+                            <input type="text" class="sell-price" placeholder="가격" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em;">매도금액</label>
+                            <input type="text" class="sell-amount" placeholder="금액" inputmode="numeric">
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn-delete-row" onclick="deleteSellRow(this)" style="display:none;">삭제</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            setupEventListeners();
+            updateSummary();
+            
+            // 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function updateTotalStats(dataToUse = null) {
+            const data = dataToUse || stockData;
+            
+            if (data.length === 0) {
+                document.getElementById('statsCard').style.display = 'none';
+                return;
+            }
+            
+            let totalInvest = 0;
+            let totalProfit = 0;
+            let winCount = 0;
+            let maxProfitRate = -Infinity;
+            let minLossRate = Infinity;
+            let sumProfitRate = 0;
+            
+            let sumTradePeriod = 0;
+            let sumFirstBuyPeriod = 0;
+            let sumBuyCount = 0;
+            let maxBuyCount = 0;
+            const buyCountFreq = {};
+            
+            data.forEach(stock => {
+                totalInvest += stock.총매수금액;
+                totalProfit += stock.수익금;
+                if (stock.수익금 > 0) winCount++;
+                
+                // 개별 종목 수익률 기준
+                sumProfitRate += stock.수익률;
+                
+                if (stock.수익률 > maxProfitRate) maxProfitRate = stock.수익률;
+                if (stock.수익률 < minLossRate) minLossRate = stock.수익률;
+                
+                // 새로운 통계 항목 계산
+                sumTradePeriod += stock.매매기간;
+                sumFirstBuyPeriod += stock.첫매수기간;
+                sumBuyCount += stock.매수차수;
+                if (stock.매수차수 > maxBuyCount) maxBuyCount = stock.매수차수;
+                
+                // 매수차수 빈도 계산
+                buyCountFreq[stock.매수차수] = (buyCountFreq[stock.매수차수] || 0) + 1;
+            });
+            
+            // 평균 수익률 = 각 종목 수익률의 평균
+            const avgReturn = data.length > 0 ? (sumProfitRate / data.length) : 0;
+            const winRate = data.length > 0 ? (winCount / data.length * 100) : 0;
+            
+            // 새로운 평균값 계산
+            const avgTradePeriod = data.length > 0 ? Math.round(sumTradePeriod / data.length) : 0;
+            const avgFirstBuyPeriod = data.length > 0 ? Math.round(sumFirstBuyPeriod / data.length) : 0;
+            const avgBuyCount = data.length > 0 ? (sumBuyCount / data.length).toFixed(1) : 0;
+            
+            // 매수차수 빈도 정렬 (빈도가 높은 순)
+            const sortedFreq = Object.entries(buyCountFreq).sort((a, b) => b[1] - a[1]);
+            
+            let topBuyCount = '-';
+            let secondBuyCount = '-';
+            let thirdBuyCount = '-';
+            
+            if (sortedFreq[0]) {
+                const topCount = sortedFreq[0][0];
+                const topFreq = sortedFreq[0][1];
+                const topPercent = ((topFreq / data.length) * 100).toFixed(1);
+                topBuyCount = `${topCount}차매수 / (${topPercent}%)`;
+            }
+            
+            if (sortedFreq[1]) {
+                const secondCount = sortedFreq[1][0];
+                const secondFreq = sortedFreq[1][1];
+                const secondPercent = ((secondFreq / data.length) * 100).toFixed(1);
+                secondBuyCount = `${secondCount}차매수 / (${secondPercent}%)`;
+            }
+            
+            if (sortedFreq[2]) {
+                const thirdCount = sortedFreq[2][0];
+                const thirdFreq = sortedFreq[2][1];
+                const thirdPercent = ((thirdFreq / data.length) * 100).toFixed(1);
+                thirdBuyCount = `${thirdCount}차매수 / (${thirdPercent}%)`;
+            }
+            
+            // 기존 통계 업데이트
+            document.getElementById('totalStocks').textContent = data.length;
+            document.getElementById('totalInvest').textContent = formatNumber(Math.round(totalInvest)) + '원';
+            document.getElementById('totalProfit').textContent = formatNumber(Math.round(totalProfit)) + '원';
+            document.getElementById('avgReturn').textContent = avgReturn.toFixed(2) + '%';
+            document.getElementById('winRate').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('maxProfitRate').textContent = (maxProfitRate === -Infinity ? 0 : maxProfitRate).toFixed(2) + '%';
+            
+            // 최대 손실률 표시 로직 수정
+            if (minLossRate >= 0) {
+                // 모든 종목이 수익이거나 본전이면 "-" 표시
+                document.getElementById('maxLossRate').textContent = '-';
+            } else {
+                document.getElementById('maxLossRate').textContent = minLossRate.toFixed(2) + '%';
+            }
+            
+            // 새로운 통계 업데이트
+            document.getElementById('avgTradePeriod').textContent = avgTradePeriod + '일';
+            document.getElementById('avgFirstBuyPeriod').textContent = avgFirstBuyPeriod + '일';
+            document.getElementById('avgBuyCount').textContent = avgBuyCount + '회';
+            document.getElementById('maxBuyCount').textContent = maxBuyCount + '회';
+            document.getElementById('topBuyCount').textContent = topBuyCount;
+            document.getElementById('secondBuyCount').textContent = secondBuyCount;
+            document.getElementById('thirdBuyCount').textContent = thirdBuyCount;
+            
+            // 색상
+            const profitEl = document.getElementById('totalProfit');
+            const returnEl = document.getElementById('avgReturn');
+            if (totalProfit > 0) {
+                profitEl.style.color = '#f44336';
+                returnEl.style.color = '#f44336';
+            } else if (totalProfit < 0) {
+                profitEl.style.color = '#2196f3';
+                returnEl.style.color = '#2196f3';
+            } else {
+                profitEl.style.color = '#333';
+                returnEl.style.color = '#333';
+            }
+            
+            document.getElementById('statsCard').style.display = 'block';
+        }
+        
+        function deleteStockFromList(index) {
+            if (confirm('이 종목을 삭제하시겠습니까?')) {
+                stockData.splice(index, 1);
+                updateStatsList();
+                updateTotalStats();
+                
+                if (stockData.length === 0) {
+                    document.getElementById('statsCard').style.display = 'none';
+                }
+            }
+        }
+        
+        function resetInputForm() {
+            document.getElementById('strategyName').value = '';
+            document.getElementById('marketCap').value = '';
+            document.getElementById('stockName').value = '';
+            document.getElementById('rank').value = '';
+            document.getElementById('highType').value = '';
+            document.getElementById('envelope').value = '';
+            document.getElementById('catchDate').value = '';
+            
+            // 매수/매도 행 초기화
+            document.getElementById('buyList').innerHTML = `
+                <div class="trade-row buy-row">
+                    <div class="trade-label">1차매수</div>
+                    <div>
+                        <label style="font-size: 0.85em;">날짜</label>
+                        <input type="text" class="buy-date date-input" placeholder="250702" maxlength="10">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">D+일</label>
+                        <input type="text" class="buy-dday" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매수가</label>
+                        <input type="text" class="buy-price" placeholder="가격" inputmode="numeric">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매수금액</label>
+                        <input type="text" class="buy-amount" placeholder="금액" inputmode="numeric">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn-delete-row" onclick="deleteBuyRow(this)" style="display:none;">삭제</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('sellList').innerHTML = `
+                <div class="trade-row sell-row">
+                    <div class="trade-label">1차매도</div>
+                    <div>
+                        <label style="font-size: 0.85em;">날짜</label>
+                        <input type="text" class="sell-date date-input" placeholder="250702" maxlength="10">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">D+일</label>
+                        <input type="text" class="sell-dday" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매도가</label>
+                        <input type="text" class="sell-price" placeholder="가격" inputmode="numeric">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em;">매도금액</label>
+                        <input type="text" class="sell-amount" placeholder="금액" inputmode="numeric">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn-delete-row" onclick="deleteSellRow(this)" style="display:none;">삭제</button>
+                    </div>
+                </div>
+            `;
+            
+            setupEventListeners();
+            updateSummary();
+        }
+        
+        function exportToExcel() {
+            if (stockData.length === 0) {
+                alert('통계 데이터가 없습니다!');
+                return;
+            }
+            
+            const wb = XLSX.utils.book_new();
+            
+            // 전체 요약 시트
+            const summary_data = [
+                ['기법명', '종목명', '등수', '신고가', '엔벨정착', '포착일', '첫매수기간', '매매기간', '매수차수', '평단가', '총매수금액', '총매도금액', '수익금', '수익률(%)']
+            ];
+            
+            stockData.forEach(stock => {
+                summary_data.push([
+                    stock.기법명,
+                    stock.종목명,
+                    stock.등수,
+                    stock.신고가,
+                    stock.엔벨정착,
+                    stock.포착일,
+                    stock.첫매수기간 + '일',
+                    stock.매매기간 + '일',
+                    stock.매수차수 + '회',
+                    Math.round(stock.평단가),
+                    Math.round(stock.총매수금액),
+                    Math.round(stock.총매도금액),
+                    Math.round(stock.수익금),
+                    stock.수익률.toFixed(2)
+                ]);
+            });
+            
+            const ws_summary = XLSX.utils.aoa_to_sheet(summary_data);
+            XLSX.utils.book_append_sheet(wb, ws_summary, '전체요약');
+            
+            // 파일 다운로드
+            const today = new Date();
+            const dateStr = today.getFullYear() + 
+                           String(today.getMonth() + 1).padStart(2, '0') + 
+                           String(today.getDate()).padStart(2, '0');
+            const filename = `매매통계_${dateStr}.xlsx`;
+            
+            XLSX.writeFile(wb, filename);
+        }
+        
+        function resetAll() {
+            if (confirm('입력 폼을 초기화하시겠습니까?\n(통계 종목 리스트는 유지됩니다)')) {
+                resetInputForm();
+            }
+        }
+        
+        // ========== Google Drive API 설정 ==========
+        const CLIENT_ID = '574140412573-n0jau2i3uph1v5p3hi9v004m44bnopq8.apps.googleusercontent.com';
+        const API_KEY = '';  // OAuth만 사용
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        const FILE_NAME = 'trading_stats_backup.json';
+        
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let isSignedIn = false;
+        let driveFileId = null;  // 메모리에만 저장
+        let tokenRefreshTimer = null;
+        
+        // ========== GAPI 초기화 ==========
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+        
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+        }
+        
+        // ========== GIS 초기화 ==========
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '',
+            });
+            gisInited = true;
+        }
+        
+        // ========== 구글 로그인 처리 ==========
+        function handleAuthClick() {
+            if (isSignedIn) {
+                handleSignoutClick();
+            } else {
+                tokenClient.callback = async (resp) => {
+                    if (resp.error !== undefined) {
+                        throw (resp);
+                    }
+                    
+                    localStorage.setItem('google_access_token', resp.access_token);
+                    if (resp.expires_in) {
+                        const expiryTime = Date.now() + (resp.expires_in * 1000);
+                        localStorage.setItem('google_token_expiry', expiryTime.toString());
+                        setupTokenRefresh(resp.expires_in);
+                    }
+                    
+                    isSignedIn = true;
+                    updateSyncStatus('connected', '연결됨');
+                    document.getElementById('googleBtnText').textContent = '로그아웃';
+                    document.getElementById('backupBtn').disabled = false;
+                    document.getElementById('loadBtn').disabled = false;
+                    await loadFromGoogleDrive();
+                };
+                
+                if (gapi.client.getToken() === null) {
+                    tokenClient.requestAccessToken({prompt: 'consent'});
+                } else {
+                    tokenClient.requestAccessToken({prompt: ''});
+                }
+            }
+        }
+        
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+            }
+            
+            if (tokenRefreshTimer) {
+                clearTimeout(tokenRefreshTimer);
+                tokenRefreshTimer = null;
+            }
+            
+            localStorage.removeItem('google_access_token');
+            localStorage.removeItem('google_token_expiry');
+            
+            isSignedIn = false;
+            updateSyncStatus('disconnected', '연결 안됨');
+            document.getElementById('googleBtnText').textContent = '구글 로그인';
+            document.getElementById('backupBtn').disabled = true;
+            document.getElementById('loadBtn').disabled = true;
+        }
+        
+        // ========== 토큰 자동 갱신 ==========
+        function setupTokenRefresh(expiresInSeconds) {
+            if (tokenRefreshTimer) {
+                clearTimeout(tokenRefreshTimer);
+            }
+            
+            const refreshTime = Math.max((expiresInSeconds - 300) * 1000, 60 * 1000);
+            
+            tokenRefreshTimer = setTimeout(async () => {
+                if (isSignedIn && tokenClient) {
+                    try {
+                        tokenClient.callback = async (resp) => {
+                            if (resp.error === undefined) {
+                                localStorage.setItem('google_access_token', resp.access_token);
+                                if (resp.expires_in) {
+                                    const expiryTime = Date.now() + (resp.expires_in * 1000);
+                                    localStorage.setItem('google_token_expiry', expiryTime.toString());
+                                    setupTokenRefresh(resp.expires_in);
+                                }
+                                gapi.client.setToken({access_token: resp.access_token});
+                            }
+                        };
+                        tokenClient.requestAccessToken({prompt: ''});
+                    } catch (err) {
+                        console.error('토큰 자동 갱신 실패:', err);
+                    }
+                }
+            }, refreshTime);
+        }
+        
+        // ========== 로그인 상태 복원 ==========
+        async function restoreLoginState() {
+            const savedToken = localStorage.getItem('google_access_token');
+            const tokenExpiry = localStorage.getItem('google_token_expiry');
+            
+            if (savedToken && tokenExpiry) {
+                if (Date.now() < parseInt(tokenExpiry)) {
+                    gapi.client.setToken({access_token: savedToken});
+                    
+                    isSignedIn = true;
+                    updateSyncStatus('connected', '연결됨');
+                    document.getElementById('googleBtnText').textContent = '로그아웃';
+                    document.getElementById('backupBtn').disabled = false;
+                    document.getElementById('loadBtn').disabled = false;
+                    
+                    const remainingSeconds = Math.floor((parseInt(tokenExpiry) - Date.now()) / 1000);
+                    setupTokenRefresh(remainingSeconds);
+                    
+                    await loadFromGoogleDrive();
+                } else {
+                    localStorage.removeItem('google_access_token');
+                    localStorage.removeItem('google_token_expiry');
+                }
+            }
+        }
+        
+        // ========== 동기화 상태 표시 ==========
+        function updateSyncStatus(status, text) {
+            const statusEl = document.getElementById('syncStatus');
+            const textEl = document.getElementById('statusText');
+            statusEl.className = `sync-status ${status}`;
+            textEl.textContent = text;
+        }
+        
+        // ========== 구글 드라이브 파일 찾기 ==========
+        async function findDriveFile() {
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `name='${FILE_NAME}' and trashed=false`,
+                    spaces: 'drive',
+                    fields: 'files(id, name)',
+                });
+                const files = response.result.files;
+                if (files && files.length > 0) {
+                    return files[0].id;
+                }
+                return null;
+            } catch (err) {
+                console.error('파일 검색 오류:', err);
+                return null;
+            }
+        }
+        
+        // ========== 구글 드라이브에서 불러오기 ==========
+        async function loadFromGoogleDrive() {
+            if (!isSignedIn) return;
+            
+            updateSyncStatus('syncing', '불러오는 중...');
+            
+            try {
+                driveFileId = await findDriveFile();
+                
+                if (driveFileId) {
+                    const response = await gapi.client.drive.files.get({
+                        fileId: driveFileId,
+                        alt: 'media',
+                    });
+                    
+                    const data = JSON.parse(response.body);
+                    stockData = data.stockData || [];
+                    updateStatsList();
+                    updateSyncStatus('connected', '연결됨');
+                    console.log('✓ 데이터를 불러왔습니다. (종목 수: ' + stockData.length + ')');
+                } else {
+                    updateSyncStatus('connected', '연결됨 (파일 없음)');
+                    console.log('저장된 백업 파일이 없습니다.');
+                }
+            } catch (err) {
+                console.error('불러오기 오류:', err);
+                updateSyncStatus('connected', '연결됨');
+            }
+        }
+        
+        // ========== 구글 드라이브에 저장 ==========
+        async function saveToGoogleDrive() {
+            if (!isSignedIn) return;
+            
+            updateSyncStatus('syncing', '저장 중...');
+            
+            try {
+                const dataToSave = {
+                    stockData: stockData,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                const data = JSON.stringify(dataToSave, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                
+                if (driveFileId) {
+                    // 기존 파일 업데이트 (PATCH)
+                    const metadata = {
+                        name: FILE_NAME,
+                        mimeType: 'application/json',
+                    };
+                    
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    
+                    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`, {
+                        method: 'PATCH',
+                        headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                        body: form,
+                    });
+                    
+                    console.log('✓ 기존 파일 업데이트 완료');
+                } else {
+                    // 새 파일 생성 (POST)
+                    const metadata = {
+                        name: FILE_NAME,
+                        mimeType: 'application/json',
+                    };
+                    
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    
+                    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                        method: 'POST',
+                        headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                        body: form,
+                    });
+                    
+                    const result = await response.json();
+                    driveFileId = result.id;
+                    
+                    console.log('✓ 새 파일 생성 완료 (ID: ' + driveFileId + ')');
+                }
+                
+                updateSyncStatus('connected', '연결됨');
+                console.log('✓ 데이터 저장 완료 (종목 수: ' + stockData.length + ')');
+            } catch (err) {
+                console.error('저장 오류:', err);
+                updateSyncStatus('connected', '연결됨 (저장 실패)');
+            }
+        }
+        
+        // ========== 수동 백업 ==========
+        async function manualBackup() {
+            if (!isSignedIn) {
+                alert('구글 로그인이 필요합니다.');
+                return;
+            }
+            
+            if (confirm('현재 데이터를 구글 드라이브에 백업하시겠습니까?')) {
+                await saveToGoogleDrive();
+                alert('백업이 완료되었습니다!');
+            }
+        }
+        
+        // ========== 수동 로드 ==========
+        async function manualLoad() {
+            if (!isSignedIn) {
+                alert('구글 로그인이 필요합니다.');
+                return;
+            }
+            
+            if (confirm('구글 드라이브에서 데이터를 로드하시겠습니까?\n현재 데이터는 덮어씌워집니다.')) {
+                await loadFromGoogleDrive();
+                alert('데이터를 로드했습니다!');
+            }
+        }
+        
+        // ========== 페이지 로드 시 초기화 ==========
+        window.addEventListener('load', async function() {
+            // 구글 API 초기화
+            gapiLoaded();
+            gisLoaded();
+            
+            // 초기화 대기 후 로그인 상태 복원
+            const waitForInit = setInterval(async () => {
+                if (gapiInited && gisInited) {
+                    clearInterval(waitForInit);
+                    await restoreLoginState();
+                }
+            }, 100);
+        });
+        
+        // ========== 페이지 종료 시 자동 백업 ==========
+        window.addEventListener('beforeunload', function(e) {
+            if (isSignedIn && stockData.length > 0) {
+                // 백업 시도 (비동기지만 최선을 다함)
+                saveToGoogleDrive();
+            }
+        });
+        
+        // 초기화
+        createStockInput();
+    </script>
+</body>
+</html>
